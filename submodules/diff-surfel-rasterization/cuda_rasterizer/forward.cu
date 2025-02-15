@@ -113,9 +113,9 @@ __device__ void compute_transmat(
 
 	// why do we need to store the transpose of the matrices instead of storing them directly?
 	glm::mat3x4 splat2world = glm::mat3x4(
-		glm::vec3(L[0]),0,
-		glm::vec3(L[1]),0,
-		p_orig.x, p_orig.y, p_orig.z, 1
+		glm::vec4(L[0],0),
+		glm::vec4(L[1],0),
+		glm::vec4(p_orig.x, p_orig.y, p_orig.z, 1.0)
 	);
 
 	glm::mat4 world2ndc = glm::mat4(
