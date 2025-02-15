@@ -8,15 +8,29 @@ namespace cg = cooperative_groups;
 // coefficients of each Gaussian to a simple RGB color.
 __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const glm::vec3* means, glm::vec3 campos, const float* shs, bool* clamped)
 {
+	/*
+	- idx: index of gaussian being processes
+	- deg: aximum degree of spherical harmonics used (e.g., 0, 1, 2, 3)
+	- max_coeffs: Number of SH coefficients per Gaussian (depends on deg).
+	- means: 3D positions of Gaussians.
+	- campos: Camera position (used to compute the view direction).
+	- shs: Array of SH coefficients (stored as flattened floats).
+	- clamped: Flags to track clamped color channels (for gradient computation).
+	*/
+
 	// The implementation is loosely based on code for 
 	// "Differentiable Point-Based Radiance Fields for 
 	// Efficient View Synthesis" by Zhang et al. (2022)
+
+	// view direction
 	glm::vec3 pos = means[idx];
 	glm::vec3 dir = pos - campos;
 	dir = dir / glm::length(dir);
 
 	glm::vec3* sh = ((glm::vec3*)shs) + idx * max_coeffs;
-	glm::vec3 result = SH_C0 * sh[0];
+	glm::vec3 result = SH_C0 * sh[0]; // const term
+
+	// Spherical harmonics coefficients in auxillary.h
 
 	if (deg > 0)
 	{
@@ -24,6 +38,7 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const 
 		float y = dir.y;
 		float z = dir.z;
 		result = result - SH_C1 * y * sh[1] + SH_C1 * z * sh[2] - SH_C1 * x * sh[3];
+		// Basis functions are y, z, x
 
 		if (deg > 1)
 		{
@@ -50,6 +65,8 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const 
 		}
 	}
 	result += 0.5f;
+	// The +0.5 compensates for the SH basis scaling (common in NeRF-style models).
+	// Clamping ensures RGB values are non-negative (physically valid colors).
 
 	// RGB colors are clamped to positive values. If values are
 	// clamped, we need to keep track of this for the backward pass.
@@ -62,21 +79,23 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const 
 // Compute a 2D-to-2D mapping matrix from a tangent plane into a image plane
 // given a 2D gaussian parameters.
 __device__ void compute_transmat(
-	const float3& p_orig,
-	const glm::vec2 scale,
-	float mod,
-	const glm::vec4 rot,
-	const float* projmatrix,
-	const float* viewmatrix,
+	const float3& p_orig, // float3 is a struct with x, y, z coordinates
+	const glm::vec2 scale, // 2D scale factors for the Gaussian’s anisotropic (directional) scaling
+	float mod, // ??
+	const glm::vec4 rot, // Gaussian’s orientation in 3D space
+	const float* projmatrix, // dimension? projection matrix: view to clip space
+	const float* viewmatrix, // dimension? view matrix: world to view space
 	const int W,
 	const int H, 
 	glm::mat3 &T,
-	float3 &normal
+	float3 &normal // 3D normal vector of the Gaussian after transformation, used for orientation check, sorting, etc.
 ) {
 
 	glm::mat3 R = quat_to_rotmat(rot);
 	glm::mat3 S = scale_to_mat(scale, mod);
 	glm::mat3 L = R * S;
+	// Why the hints say that L[0], L[1] contain orientation information? What about L[2]?
+
 
 	//------------------------------------------------------
 	//----- PLEASE FILL IN COMPUTATIONS FOR 
@@ -92,16 +111,29 @@ __device__ void compute_transmat(
 	//-----     - Convert W and H to float format before using in computations
 	//------------------------------------------------------
 
+	// why do we need to store the transpose of the matrices instead of storing them directly?
 	glm::mat3x4 splat2world = glm::mat3x4(
-		...
+		glm::vec3(L[0]),0,
+		glm::vec3(L[1]),0,
+		p_orig.x, p_orig.y, p_orig.z, 1
 	);
 
 	glm::mat4 world2ndc = glm::mat4(
-		...
+		projmatrix[0], projmatrix[4], projmatrix[8], projmatrix[12],
+		projmatrix[1], projmatrix[5], projmatrix[9], projmatrix[13],
+		projmatrix[2], projmatrix[6], projmatrix[10], projmatrix[14],
+		projmatrix[3], projmatrix[7], projmatrix[11], projmatrix[15]
 	);
 
+	// ????
+	float Wf = (float) W;
+	float Hf = (float) H;
+
+	// drop z dimension
 	glm::mat3x4 ndc2pix = glm::mat3x4(
-		...
+		Wf/2, 0, 0, (Wf-1)/2,
+		0, Hf/2, 0, (Hf-1)/2,
+		0, 0, 0, 1
 	);
 
 	T = glm::transpose(splat2world) * world2ndc * ndc2pix;

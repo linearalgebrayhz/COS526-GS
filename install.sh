@@ -3,7 +3,7 @@ source "$CONDA_PREFIX/etc/profile.d/conda.sh"
 
 ENV_NAME='gs2d'
 
-mamba create -n $ENV_NAME python=3.9 -y
+conda create -n $ENV_NAME python=3.9 -y
 conda activate $ENV_NAME
 
 # !!! Ensure correct environment is actually activated !!! #
@@ -15,8 +15,8 @@ else
 fi
 
 
-mamba install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
-mamba install -c "nvidia/label/cuda-11.8.0" cuda-toolkit -y
-mamba env update -f environment.yml
+conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit -ys
+conda env update -f environment.yml
 
 pip install -q numpy==1.26.4
