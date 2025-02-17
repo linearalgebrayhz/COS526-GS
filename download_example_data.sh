@@ -2,5 +2,5 @@
 mkdir -p data
 cd data
 gdown --id 1OsiBs2udl32-1CqTXCitmov4NQCYdA9g
-unzip nerf_synthetic.zip
+gunzip nerf_synthetic.zip
 cd ..

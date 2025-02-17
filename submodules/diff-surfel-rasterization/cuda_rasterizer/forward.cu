@@ -91,10 +91,15 @@ __device__ void compute_transmat(
 	float3 &normal // 3D normal vector of the Gaussian after transformation, used for orientation check, sorting, etc.
 ) {
 
+	// quaternion to rotation matrix in auxillary.h
+	// Derive quat_to_rot by yourself
 	glm::mat3 R = quat_to_rotmat(rot);
+
 	glm::mat3 S = scale_to_mat(scale, mod);
+
 	glm::mat3 L = R * S;
 	// Why the hints say that L[0], L[1] contain orientation information? What about L[2]?
+	// L[2] is the normal of 2d gaussian, perpendicular to both L[0] and L[1]
 
 
 	//------------------------------------------------------

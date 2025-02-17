@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Replace with your actual file name
-filename = "/content/drive/MyDrive/gs_assignment/output/lego/train/ours_30000/fuse_post.ply"
+filename = "./output/lego/train/ours_30000/fuse_post.ply"
 
 # Load the point cloud
 pcd = o3d.io.read_point_cloud(filename)
@@ -49,4 +49,5 @@ ax.set_ylabel("Y")
 ax.set_zlabel("Z")
 ax.set_title("3D Point Cloud with Equal Axis Scaling")
 
-plt.show()
+# plt.show()
+plt.savefig("./fuse_post/img", dpi = "figure", format = None)
