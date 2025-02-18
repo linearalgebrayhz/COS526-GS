@@ -53,6 +53,7 @@ __forceinline__ __device__ float ndc2Pix(float v, int S)
 	return ((v + 1.0) * S - 1.0) * 0.5;
 }
 
+// bounding boax helper functions
 __forceinline__ __device__ void getRect(const float2 p, int max_radius, uint2& rect_min, uint2& rect_max, dim3 grid)
 {
 	rect_min = {
@@ -106,6 +107,7 @@ __forceinline__ __device__ float3 transformVec4x3Transpose(const float3& p, cons
 	return transformed;
 }
 
+// directional derivative of normalized vector
 __forceinline__ __device__ float dnormvdz(float3 v, float3 dv)
 {
 	float sum2 = v.x * v.x + v.y * v.y + v.z * v.z;
@@ -171,7 +173,11 @@ __forceinline__ __device__ float3 maxf3(float f, float3 a){return make_float3(ma
 
 __forceinline__ __device__ float2 maxf2(float f, float2 a){return make_float2(max(f, a.x), max(f, a.y));}
 
-__forceinline__ __device__ bool in_frustum(int idx,
+// __forceinline__
+// __device__: Indicates that this function will run on the GPU
+
+
+__forceinline__ __device__ bool in_frustum(int idx, // index of the point
 	const float* orig_points,
 	const float* viewmatrix,
 	const float* projmatrix,
@@ -183,9 +189,11 @@ __forceinline__ __device__ bool in_frustum(int idx,
 	// Bring points to screen space
 	float4 p_hom = transformPoint4x4(p_orig, projmatrix);
 	float p_w = 1.0f / (p_hom.w + 0.0000001f);
-	float3 p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w };
+	float3 p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w }; // to convert homogeneous coordinates back to 3D space
 	p_view = transformPoint4x3(p_orig, viewmatrix);
 
+	// frustum culling check
+	// check if the z coordinate is too close to the camera
 	if (p_view.z <= 0.2f)// || ((p_proj.x < -1.3 || p_proj.x > 1.3 || p_proj.y < -1.3 || p_proj.y > 1.3)))
 	{
 		if (prefiltered)
@@ -203,13 +211,14 @@ inline __device__ glm::mat3 quat_to_rotmat(const glm::vec4 quat) {
 	// quat to rotation matrix
 	float s = rsqrtf(
 		quat.w * quat.w + quat.x * quat.x + quat.y * quat.y + quat.z * quat.z
-	);
+	); // `rsqrtf` Reciprocal Square Root from stdlib/math
 	float w = quat.x * s;
 	float x = quat.y * s;
 	float y = quat.z * s;
 	float z = quat.w * s;
 
 	// glm matrices are column-major
+	// written on paper in column-major order but stored in the program's memory in row-major fashion (where the columns of the matrix are stored as the mat4x4 's rows, or the vec4 s)
 	return glm::mat3(
 		1.f - 2.f * (y * y + z * z),
 		2.f * (x * y + w * z),
