@@ -104,6 +104,66 @@ def transform_poses_pca(poses: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
   # return poses_recentered, transform
 
+def generate_spherical_path(poses: np.ndarray,
+                            n_frames: int = 120,
+                            theta_range: tuple = (np.pi*5/6, np.pi/6),
+                            radius_scale: float = 1.0,
+                            const_speed: bool = True,
+                            elevation_variation: float = 0.,
+                            elev_phase: float = 0.) -> np.ndarray:
+  """Generate a customized camera trajactory
+
+  Args:
+      poses (np.ndarray): _description_
+      n_frames (int, optional): _description_. Defaults to 120.
+      theta_range (tuple, optional): _description_. Defaults to (np.pi*5/6, np.pi/6).
+      radius_scale (float, optional): _description_. Defaults to 1.0.
+      const_speed (bool, optional): _description_. Defaults to True.
+      elevation_variation (float, optional): _description_. Defaults to 0..
+      elev_phase (float, optional): _description_. Defaults to 0..
+
+  Returns:
+      np.ndarray: _description_
+  """
+  center = focus_point_fn(poses)
+  offset = np.array([center[0], center[1], 0])
+  
+  dists = np.linalg.norm(poses[:, :3, 3] - offset, axis=1)
+  base_radius = np.percentile(dists, 90) * radius_scale  
+  
+  z_vals = poses[:, 2, 3]
+  z_low = np.percentile(z_vals, 25)
+  z_high = np.percentile(z_vals, 75)
+  
+  def get_positions(theta):
+    # Spherical coordinates with optional elevation variation
+    rad = base_radius * (1 + 0.2 * np.sin(theta*2))  # Slight radius variation
+    elev = elevation_variation * (z_low + (z_high - z_low) * 
+            (np.sin(theta + 2*np.pi*elev_phase) * 0.5 + 0.5))
+    return np.stack([
+        center[0] + rad * np.cos(theta),
+        center[1] + rad * np.sin(theta),
+        center[2] + elev
+    ], -1)
+  
+  theta = np.linspace(theta_range[0], theta_range[1], n_frames+1)
+      
+  # if const_speed:
+  #     # Resample for constant angular velocity
+  #     positions = get_positions(theta)
+  #     lengths = np.linalg.norm(positions[1:] - positions[:-1], axis=-1)
+  #     theta = stepfun.sample(None, theta, np.log(lengths), n_frames+1)
+
+  positions = get_positions(theta)[:-1]  # Remove duplicate last frame
+
+  # Determine up vector from input poses
+  avg_up = poses[:, :3, 1].mean(0)
+  avg_up /= np.linalg.norm(avg_up)
+  up_idx = np.argmax(np.abs(avg_up))
+  up = np.eye(3)[up_idx] * np.sign(avg_up[up_idx])
+
+  return np.stack([viewmatrix(p - center, up, p) for p in positions])
+
 def generate_ellipse_path(poses: np.ndarray,
                           n_frames: int = 120,
                           const_speed: bool = True,
@@ -162,7 +222,8 @@ def generate_path(viewpoint_cameras, n_frames=480):
   pose_recenter, colmap_to_world_transform = transform_poses_pca(pose)
 
   # generate new poses
-  new_poses = generate_ellipse_path(poses=pose_recenter, n_frames=n_frames)
+  # new_poses = generate_ellipse_path(poses=pose_recenter, n_frames=n_frames)
+  new_poses = generate_spherical_path(poses=pose_recenter, n_frames=n_frames)
   # warp back to orignal scale
   new_poses = np.linalg.inv(colmap_to_world_transform) @ pad_poses(new_poses)
 

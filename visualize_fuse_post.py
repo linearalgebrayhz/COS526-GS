@@ -49,5 +49,5 @@ ax.set_ylabel("Y")
 ax.set_zlabel("Z")
 ax.set_title("3D Point Cloud with Equal Axis Scaling")
 
-# plt.show()
+plt.show()
 plt.savefig("./fuse_post/img", dpi = "figure", format = None)
