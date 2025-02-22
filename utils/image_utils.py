@@ -5,11 +5,19 @@ import torch.nn.functional as F
 def mse(img1, img2):
     return (((img1 - img2)) ** 2).view(img1.shape[0], -1).mean(1, keepdim=True)
 
+
 def psnr(img1, img2):
+    """
+    Peak Signal to Noise Ratio
+    """
     mse = (((img1 - img2)) ** 2).view(img1.shape[0], -1).mean(1, keepdim=True)
     return 20 * torch.log10(1.0 / torch.sqrt(mse))
 
 def gradient_map(image):
+    # Sobel filter
+    # https://en.wikipedia.org/wiki/Sobel_operator
+    # Divided by 4 to normalize
+    # squeeze twice to reshape to [1, 1, 3, 3] (PyTorch expects [out_channels, in_channels, kernel_size[0], kernel_size[1]])
     sobel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]).float().unsqueeze(0).unsqueeze(0).cuda()/4
     sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]).float().unsqueeze(0).unsqueeze(0).cuda()/4
     
@@ -22,9 +30,9 @@ def gradient_map(image):
 
 def colormap(map, cmap="turbo"):
     colors = torch.tensor(plt.cm.get_cmap(cmap).colors).to(map.device)
-    map = (map - map.min()) / (map.max() - map.min())
-    map = (map * 255).round().long().squeeze()
-    map = colors[map].permute(2,0,1)
+    map = (map - map.min()) / (map.max() - map.min()) # Normalize to [0, 1]
+    map = (map * 255).round().long().squeeze() # Scale to [0, 255]
+    map = colors[map].permute(2,0,1) # [H, W, 3] -> [3, H, W] pytorch format
     return map
 
 def render_net_image(render_pkg, render_items, render_mode, camera):
