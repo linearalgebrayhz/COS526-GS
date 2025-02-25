@@ -14,6 +14,7 @@ def marching_cubes_with_contraction(
     inv_contraction=None,
     max_range=32.0,
 ):
+
     assert resolution % 512 == 0
 
     resN = resolution
